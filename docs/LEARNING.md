@@ -85,3 +85,25 @@ A local admin panel is a tempting target. These are the defences in `app.py`:
 - `man iptables`, `man pf.conf`, `man pfctl`, `netsh advfirewall /?`
 - OWASP: *Cross-Site Request Forgery*, *DNS Rebinding*
 - NIST SP 800-41 Rev. 1: *Guidelines on Firewalls and Firewall Policy*
+
+## 7. Passive reconnaissance (Domain Recon tab)
+
+"Recon" is the first phase of any security assessment: learning what is public about a target before touching it. NetGuard's recon is **passive** - it reads public DNS and makes one ordinary HTTPS request, exactly like a browser.
+
+- **DNS records** map names to addresses and services. `MX` shows the mail servers; `NS` the authoritative name servers; `TXT` holds policy records; `CAA` says which certificate authorities may issue certs for the domain.
+- **Email spoofing protection** lives in DNS. **SPF** lists who may send mail for the domain, **DKIM** signs messages, and **DMARC** tells receivers what to do when SPF/DKIM fail. A domain with no SPF/DMARC can be impersonated in phishing emails - one of the most common real-world attacks.
+- **TLS certificate.** Every HTTPS site presents one. The **issuer** is the certificate authority, the **validity dates** show when it expires (an expired cert breaks the site and erodes trust), and the **Subject Alternative Names** list every hostname it covers - which often reveals a company's other subdomains.
+- **HTTP security headers** like HSTS, CSP and X-Frame-Options tell the browser to enforce extra protections. Missing ones are easy, high-value hardening wins.
+
+Only run recon against domains you own or are explicitly authorized to assess.
+
+## 8. Password strength (Password Lab tab)
+
+Passwords fall to two kinds of attack:
+
+1. **Guessing the person.** Attackers start with what they can learn about you - your name, date of birth, kids' or pets' names, favourite team - and combine them with years and symbols (`Anna@2015`). This is why the lab asks for optional personal details: if your password can be built from them, a *targeted* attack finds it quickly no matter how long it looks.
+2. **Brute force / dictionary.** For everything else, attackers try leaked-password lists first, then guess by brute force. How long that takes depends on **entropy** - roughly, how many equally-likely possibilities there are, measured in bits. Each extra bit doubles the work. The lab estimates entropy, then divides the search space by realistic guess rates to show a **time to crack** for four attacker types, from a rate-limited login form to a GPU rig hammering stolen hashes.
+
+**What actually helps:** length beats complexity. A five-word passphrase (`Impale-Mummify-Curliness-Traffic-Party-55`) has far more entropy than `P@ss1!` and is easier to remember. Never reuse passwords, and use a password manager. The lab's generator produces both diceware passphrases and random strings.
+
+> The lab runs entirely offline. No password you type is stored, logged or sent anywhere.

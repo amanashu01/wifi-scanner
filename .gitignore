@@ -23,6 +23,6 @@ instance/
 .idea/
 
 # NetGuard runtime data (your firewall rules)
-data/
+/data/
 *.tmp
 .pytest_cache/

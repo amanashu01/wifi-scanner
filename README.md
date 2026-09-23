@@ -2,9 +2,11 @@
 
 **See what traffic is coming into and going out of your computer, and block it, from a local web dashboard.**
 
-NetGuard is a hands-on learning tool for **cyber-security students**. It shows the network activity on your own machine and lets you block IP addresses and services with your operating system's firewall. Every firewall command it runs is displayed, so you can see how the rules work underneath.
+NetGuard is a hands-on learning tool for **cyber-security students**. It shows the network activity on your own machine, lets you block IP addresses and services with your operating system's firewall, runs passive reconnaissance on any domain, audits whether your traffic could leak credentials, and teaches password strength — all from one dark "security operations centre" dashboard. Every firewall command it runs is displayed, so you can see how the rules work underneath.
 
 > Built by **Ashutosh Singh**. Runs 100% locally on Windows, macOS and Linux. No cloud, no telemetry, no packet capture.
+
+![Overview](docs/screenshots/overview.png)
 
 ---
 
@@ -16,7 +18,13 @@ NetGuard is a hands-on learning tool for **cyber-security students**. It shows t
 | **Connections** | Every TCP/UDP socket on the machine, labelled **incoming / outgoing / listening**, with the local and remote address, state and **owning process + PID**. Public IPs and **risky ports** (Telnet, SMB, RDP, 4444…) are tagged. One-click **Block IP** / **Block port** buttons. |
 | **Traffic** | A live throughput chart for the last 2 minutes, plus per-interface rates, total bytes, errors and dropped packets. |
 | **Firewall** | Block an **IP address**, a **CIDR network** (`10.0.0.0/24`) or a **port/service**, inbound, outbound or both, TCP/UDP. The exact `iptables` / `pfctl` / `netsh` commands are shown for every rule. Unblock one rule or all of them. |
+| **Domain Recon** | Passive reconnaissance on any domain: **DNS records** (A, AAAA, MX, NS, TXT, CAA), **email-spoofing protection** (SPF / DMARC / DKIM), the **TLS certificate** (issuer, validity, days remaining, TLS version, the names it covers) and which **HTTP security headers** the site sets. Reads only public data. |
+| **Exposure** | Answers *"could my network activity leak my passwords?"* by flagging connections on **cleartext protocols** (HTTP, FTP, Telnet, IMAP…) and **open WiFi**, where credentials can be read by others. Gives a safety score and concrete fixes. It never reads any password — only the channels traffic uses. |
+| **Password Lab** | Test a password's strength offline: length, character variety, an **entropy estimate**, whether it is a known leaked password, and whether it is built from **your own personal details** (name, date of birth, pet…) — the way a targeted attacker would guess. Shows an estimated **time to crack** for four attacker types, and **generates strong passwords** (diceware passphrases or random). Nothing is stored or sent anywhere. |
 | **WiFi** | Nearby WiFi networks with signal strength, channel and security (Open / WEP / WPA / WPA2 / WPA3). Open and WEP networks are highlighted. |
+
+![Domain Recon](docs/screenshots/domain-recon.png)
+![Password Lab](docs/screenshots/password-lab.png)
 
 ### Safe by design
 - **Simulation mode** by default. If you don't run it as root or Administrator, rules are recorded and their commands are shown, but **nothing on your system changes**, so you can explore safely.
@@ -81,9 +89,14 @@ python app.py [--port 5050] [--host 127.0.0.1] [--flush] [--debug]
  Overview / Connections  ── GET /api/connections ──► netguard/connections.py ─► psutil / lsof  (socket table)
  Traffic chart           ── GET /api/traffic     ──► netguard/traffic.py     ─► interface byte counters
  WiFi                    ── GET /api/wifi        ──► netguard/wifi.py        ─► netsh / nmcli / system_profiler
+ Domain Recon            ── GET /api/recon       ──► netguard/recon.py       ─► public DNS + one HTTPS request
+ Exposure                ── GET /api/exposure    ──► netguard/exposure.py    ─► reasons over live connections
+ Password Lab            ── POST /api/password/* ──► netguard/password.py    ─► offline, word lists in netguard/data
  Firewall                ── POST/DELETE /api/firewall/rules
                              (X-NetGuard-Token)  ──► netguard/firewall.py    ─► iptables / pfctl / netsh
 ```
+
+All endpoints are JSON. The read-only monitoring routes (`/api/connections`, `/api/traffic`, `/api/wifi`, `/api/recon`, `/api/exposure`) are plain `GET`s; anything that changes state or accepts a password (`/api/firewall/rules`, `/api/password/*`) is a `POST`/`DELETE` that requires the per-session `X-NetGuard-Token` header.
 
 ### How is a connection classified?
 The OS keeps a table of every open socket. NetGuard reads it (the same data `netstat -an` or `lsof -i` prints) and labels each one:
@@ -155,12 +168,28 @@ netguard/
   traffic.py              per-interface byte counters → live rates
   firewall.py             rule validation + iptables / pf / netsh backends
   wifi.py                 nearby WiFi networks (per-OS parsers)
+  recon.py                passive domain recon: DNS, email security, TLS cert, HTTP headers
+  exposure.py             cleartext-credential & open-WiFi exposure audit
+  password.py             password strength analysis + generator (offline)
+  data/                   EFF diceware + common-password word lists
 templates/index.html      dashboard markup
 static/app.js, style.css  dashboard logic & styles (no external libraries)
 tests/                    pytest suite
 docs/LEARNING.md          background concepts for learners
+docs/screenshots/         images used in this README
 run.sh / run.bat          one-command setup & launch
 ```
+
+## Dependencies
+
+Installed automatically by `run.sh` / `run.bat` from `requirements.txt`:
+
+- **flask** — the local web server
+- **psutil** — cross-platform socket table and interface counters
+- **dnspython** — DNS lookups for Domain Recon
+- **certifi** — a trusted CA bundle so TLS certificates validate even on Python builds that ship without a system CA store
+
+The TLS, HTTP and password features use only the Python standard library beyond these.
 
 ## Running the tests
 

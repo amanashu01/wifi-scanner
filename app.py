@@ -32,7 +32,7 @@ from pathlib import Path
 from flask import Flask, abort, jsonify, render_template, request
 
 from netguard import __version__
-from netguard import connections, traffic, wifi
+from netguard import connections, exposure, password, recon, traffic, wifi
 from netguard.firewall import FirewallManager, RuleError
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -126,6 +126,55 @@ def api_wifi():
         return jsonify({"error": f"Scan command failed: {e.output}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ----------------------------------------------------------------------------
+# Security tools: recon, exposure audit, password lab
+# ----------------------------------------------------------------------------
+@app.route("/api/recon")
+def api_recon():
+    try:
+        return jsonify(recon.recon(request.args.get("domain", "")))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/exposure")
+def api_exposure():
+    try:
+        conns, _, _ = connections.list_connections()
+    except Exception:
+        conns = []
+    nets, ssid = [], None
+    try:
+        nets = wifi.scan_networks()
+    except Exception:
+        pass
+    return jsonify(exposure.audit(conns, nets, ssid))
+
+
+@app.route("/api/password/analyze", methods=["POST"])
+@require_token
+def api_password_analyze():
+    body = request.get_json(silent=True) or {}
+    return jsonify(password.analyze(body.get("password", ""), body.get("info") or {}))
+
+
+@app.route("/api/password/generate", methods=["POST"])
+@require_token
+def api_password_generate():
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(password.generate(
+            mode=body.get("mode", "passphrase"),
+            words=body.get("words", 5), length=body.get("length", 20),
+            separator=body.get("separator", "-"),
+            capitalize=bool(body.get("capitalize", True)),
+            add_number=bool(body.get("add_number", True))))
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": str(e)}), 400
 
 
 # ----------------------------------------------------------------------------
