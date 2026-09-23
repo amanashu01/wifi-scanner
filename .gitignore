@@ -21,3 +21,8 @@ instance/
 # IDE
 .vscode/
 .idea/
+
+# NetGuard runtime data (your firewall rules)
+data/
+*.tmp
+.pytest_cache/

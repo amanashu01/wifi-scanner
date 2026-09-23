@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="netguard-token" content="{{ token }}">
+<title>NetGuard</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%233fb950' d='M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5z'/></svg>">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" class="logo" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.7 8 11 4.6-1.3 8-6 8-11V5z"/></svg>
+    <span>NetGuard</span><small>v{{ version }}</small>
+  </div>
+  <span id="mode" class="pill">…</span>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="overview">Overview</button>
+  <button class="tab" data-tab="connections">Connections</button>
+  <button class="tab" data-tab="traffic">Traffic</button>
+  <button class="tab" data-tab="firewall">Firewall</button>
+  <button class="tab" data-tab="wifi">WiFi</button>
+</nav>
+
+<main>
+  <!-- ============================ OVERVIEW ============================ -->
+  <section id="tab-overview" class="panel active">
+    <div class="stats">
+      <div class="stat"><span class="label">Incoming</span><span class="value" id="s-incoming">–</span><span class="hint">remote hosts connected to you</span></div>
+      <div class="stat"><span class="label">Outgoing</span><span class="value" id="s-outgoing">–</span><span class="hint">connections you opened</span></div>
+      <div class="stat"><span class="label">Listening</span><span class="value" id="s-listening">–</span><span class="hint"><b id="s-exposed">–</b> reachable from the network</span></div>
+      <div class="stat warn"><span class="label">Risky ports</span><span class="value" id="s-risky">–</span><span class="hint">well-known attack targets</span></div>
+      <div class="stat"><span class="label">Download</span><span class="value" id="s-rx">–</span><span class="hint">all interfaces</span></div>
+      <div class="stat"><span class="label">Upload</span><span class="value" id="s-tx">–</span><span class="hint">all interfaces</span></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Top remote hosts</h3><ul id="top-remotes" class="toplist"></ul></div>
+      <div class="card"><h3>Most active processes</h3><ul id="top-procs" class="toplist"></ul></div>
+    </div>
+    <div class="card"><h3>Exposed services <span class="muted">(listening on a non-loopback address)</span></h3><div id="exposed-list"></div></div>
+  </section>
+
+  <!-- ========================== CONNECTIONS =========================== -->
+  <section id="tab-connections" class="panel">
+    <div class="toolbar">
+      <div class="seg" id="dir-filter">
+        <button data-dir="all" class="on">All</button>
+        <button data-dir="incoming">Incoming</button>
+        <button data-dir="outgoing">Outgoing</button>
+        <button data-dir="listening">Listening</button>
+      </div>
+      <input id="conn-search" type="search" placeholder="Filter by IP, port or process…">
+      <label class="check"><input type="checkbox" id="hide-loop" checked> Hide loopback</label>
+      <label class="check"><input type="checkbox" id="conn-auto" checked> Live</label>
+    </div>
+    <p id="conn-note" class="note hidden"></p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dir</th><th>Proto</th><th>Local</th><th>Remote</th><th>State</th><th>Process</th><th></th></tr></thead>
+        <tbody id="conn-body"></tbody>
+      </table>
+    </div>
+    <p class="muted small" id="conn-meta"></p>
+  </section>
+
+  <!-- ============================ TRAFFIC ============================= -->
+  <section id="tab-traffic" class="panel">
+    <div class="card">
+      <div class="chart-head">
+        <h3>Throughput (last 2 minutes)</h3>
+        <div class="legend"><span class="sw rx"></span>Download <b id="t-rx">–</b><span class="sw tx"></span>Upload <b id="t-tx">–</b></div>
+      </div>
+      <canvas id="chart" height="220"></canvas>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Interface</th><th class="num">↓ rate</th><th class="num">↑ rate</th><th class="num">Received</th><th class="num">Sent</th><th class="num">Errors</th><th class="num">Drops</th></tr></thead>
+        <tbody id="iface-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================ FIREWALL ============================ -->
+  <section id="tab-firewall" class="panel">
+    <div id="fw-banner" class="note"></div>
+    <div class="card">
+      <h3>Add a block rule</h3>
+      <form id="rule-form" class="rule-form">
+        <label>Type
+          <select name="kind" id="f-kind">
+            <option value="ip">IP address / network</option>
+            <option value="port">Port (service)</option>
+          </select>
+        </label>
+        <label class="grow">Target
+          <input name="target" id="f-target" required placeholder="203.0.113.7 or 10.0.0.0/24" autocomplete="off">
+        </label>
+        <label>Direction
+          <select name="direction">
+            <option value="in">Inbound</option>
+            <option value="out">Outbound</option>
+            <option value="both">Both</option>
+          </select>
+        </label>
+        <label id="f-proto-wrap" class="hidden">Protocol
+          <select name="protocol">
+            <option value="both">TCP + UDP</option>
+            <option value="tcp">TCP</option>
+            <option value="udp">UDP</option>
+          </select>
+        </label>
+        <label class="grow">Note
+          <input name="note" maxlength="120" placeholder="why? (optional)">
+        </label>
+        <button type="submit" class="primary">Block</button>
+      </form>
+      <p id="form-msg" class="small"></p>
+    </div>
+    <div class="card">
+      <div class="chart-head">
+        <h3>Active rules</h3>
+        <button id="remove-all" class="danger small-btn">Remove all</button>
+      </div>
+      <div id="rules"></div>
+    </div>
+  </section>
+
+  <!-- ============================== WIFI ============================== -->
+  <section id="tab-wifi" class="panel">
+    <div class="toolbar">
+      <button id="rescan">Rescan now</button>
+      <span class="muted small" id="wifi-status"></span>
+    </div>
+    <div id="wifi-list" class="wifi-grid"></div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<footer>NetGuard · built by Ashutosh Singh for cyber-security learners · runs 100% locally</footer>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
