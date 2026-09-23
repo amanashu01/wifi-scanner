@@ -81,6 +81,51 @@ python app.py [--port 5050] [--host 127.0.0.1] [--flush] [--debug]
 
 ---
 
+## How to use it
+
+Once the dashboard is open at **http://127.0.0.1:5050**, work through the tabs in the left sidebar. The badge in the bottom-left shows **SIMULATION** (safe, default) or **LIVE** (running as root/Administrator).
+
+### 1. Overview — get the lay of the land
+Start here. It answers "what is my machine doing on the network right now?"
+- Read the six tiles: how many connections are **incoming**, **outgoing** and **listening**, your live **download/upload** speed, and how many **risky ports** are in use.
+- Scan **Exposed services** at the bottom — anything listening on `0.0.0.0` is reachable from your network. If you don't recognise one, that's your first thing to investigate. Click **Block port** to close it (see Firewall).
+
+### 2. Connections — see every conversation
+- Use the **All / Incoming / Outgoing / Listening** buttons to filter, or type in the search box (an IP, a port, or a program name).
+- Each row shows the program and PID that owns the socket. A **public** tag means the other end is on the internet; a ⚠ **risky** tag means a well-known attack port.
+- Click **Block IP** next to a suspicious remote host, or **Block port** next to a listening service, to firewall it instantly.
+- Leave **live** ticked to watch it refresh; untick **hide loopback** to also see internal-only sockets.
+
+### 3. Traffic — watch bandwidth in real time
+- The chart plots download (blue) and upload (green) over the last 2 minutes. Start a download and watch it climb.
+- The table breaks it down per network card, including **errors** and **dropped** packets — rising numbers there point to a bad link or a flood.
+
+### 4. Firewall — block IPs and services
+- Pick **Type** = *IP / network* or *Port (service)*, fill in the **Target** (`203.0.113.7`, `10.0.0.0/24`, or a port like `3389`), choose the **Direction**, add an optional note, and click **Block**.
+- Every rule lists the exact `iptables` / `pfctl` / `netsh` command it uses — expand **Firewall commands** to learn the syntax.
+- In **simulation mode** the rule is only recorded and shown; in **live mode** it is applied immediately. Remove one rule with **Unblock**, or clear everything with **Remove all**.
+- NetGuard refuses to block loopback, `0.0.0.0/0`, or its own port, so you can't lock yourself out.
+
+### 5. Domain Recon — investigate a domain
+- Type a domain you own or are authorized to assess (e.g. `example.com`) and click **Scan**.
+- Read the four cards: **DNS records**; **email security** (green means SPF/DMARC/DKIM protect the domain from spoofing, red means it can be impersonated); the **TLS certificate** (check the *days left* before it expires); and the **HTTP security headers** the site sets (green ✓) or is missing (red ✗).
+
+### 6. Exposure — could my traffic leak my passwords?
+- Click **Re-check**. NetGuard reads your live connections (never any password) and gives a **safety score**.
+- Each finding names the risk (e.g. an HTTP or Telnet connection, or being on open WiFi) and, after the **→**, exactly what to do about it. A high score with all-green means no obvious cleartext credential exposure.
+
+### 7. Password Lab — test and build passwords
+- Type a password in **Test a password** (it never leaves your machine). The verdict, strength bar, entropy and **time to crack** update as you type.
+- Open **Add personal info** and fill in your name, date of birth, pet, etc. If your password is built from any of them, the score drops sharply and the lab tells you which detail it found — this is how a targeted attacker guesses.
+- Use **Generate a strong password** to create a **passphrase** (easy to remember) or a **random** string. Adjust the sliders, then **Copy**.
+
+### 8. WiFi — audit nearby networks
+- Click **Rescan now** to list nearby WiFi. **Open** and **WEP** networks are flagged in red — avoid entering passwords on them without a VPN.
+
+> **Tip:** most tabs need no privileges, but to see *every* program's connections and to actually enforce firewall rules, start NetGuard with `sudo ./run.sh` (macOS/Linux) or an Administrator prompt (Windows).
+
+---
+
 ## How it works
 
 ```
